@@ -1,19 +1,17 @@
 #include <iostream>
-#include <pthread.h>
 #include <unistd.h>
-#include "MyMemory.hpp"
+#include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
 
 namespace ex4
 {
-    int createFile();    
     class Node
     {
     public:
-        char* data;
+        char *data;
         Node *next;
     };
-
-
 
     class MyStack
     {
@@ -23,8 +21,9 @@ namespace ex4
 
     public:
         MyStack();
-        void PUSH(char* val);
+        void PUSH(char *val);
         void POP();
-        char* TOP();
+        char *TOP();
+        static void create_file();
     };
 }

@@ -1,6 +1,7 @@
 /*
 ** server.c -- a stream socket server demo
 */
+#include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -14,35 +15,18 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <sys/mman.h>
-#include <fcntl.h>
-#include <pthread.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 
 #include <pthread.h>
 #include "MyStack.hpp"
-using namespace ex4;
-#define PORT "3498" // the port users will be connecting to
+
+#define PORT "3521" // the port users will be connecting to
 
 #define BACKLOG 10 // how many pending connections queue will hold
 
-ex4::MyStack *server_stack;
-
-int fd3;
-struct flock lock3;
-int createFile3(){
-    fd3 = open("Helper.txt", O_WRONLY | O_CREAT);
-
-
-    if (fd3 == -1)
-    {
-        printf("Error Number % d\n", errno);
-        perror("Program");
-    }
-    memset(&lock3, 0, sizeof(lock3));
-    return fd3;
-}
+ex4::MyStack* server_stack;
 
 void sigchld_handler(int s)
 {
@@ -74,7 +58,7 @@ bool prefix(const char *pre, const char *str)
     return true;
 }
 
-void *PROCESS_FUNCTION(void *new_fdcl)
+void *T_FUNCTION(void *new_fdcl)
 {
     int th_cl = *(int *)new_fdcl;
     printf("new client connect to server %d\n", th_cl);
@@ -86,26 +70,29 @@ void *PROCESS_FUNCTION(void *new_fdcl)
     size_t buf_size = 1024;
     while (true)
     {
-        input = (char *)ex4::MyMemory::my_calloc(buf_size, sizeof(char));
+        input = (char *)calloc(buf_size, sizeof(char));
         if (recv(th_cl, input, buf_size, 0) != 0)
         {
             if (prefix("PUSH", input))
             {
-                char* substr = (char*)ex4::MyMemory::my_malloc(strlen(input));
-                strncpy(substr, input+4, strlen(input)-4);
+                char* substr = (char*)malloc(strlen(input));
+                strncpy(substr, input+4, strlen(input));
                 server_stack->PUSH(substr);
             }
             else if (prefix("POP", input))
             {
-                server_stack->POP();
+                 server_stack->POP() ;
+
+                
             }
             else if (prefix("TOP", input))
             {
                 std::cout << server_stack->TOP() << std::endl;
+                send(th_cl,server_stack->TOP(),strlen(server_stack->TOP()),0);
             }
             else if (prefix("QUIT", input))
             {
-                ex4::MyMemory::my_free(input);
+                free(input);
                 break;
 
             }else {
@@ -132,9 +119,8 @@ void *get_in_addr(struct sockaddr *sa)
 
 int main(void)
 {
-     fd3 = createFile3();
-
-    server_stack = (MyStack*)mmap(NULL, sizeof(MyStack), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
+    ex4::MyStack::create_file();
+    server_stack = (ex4::MyStack*)mmap(0, 2000, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_SHARED | MAP_ANON, -1, 0);
     int sockfd, new_fd; // listen on sock_fd, new connection on new_fd
     struct addrinfo hints, *servinfo, *p;
     struct sockaddr_storage their_addr; // connector's address information
@@ -221,18 +207,10 @@ int main(void)
                   get_in_addr((struct sockaddr *)&their_addr),
                   s, sizeof s);
         printf("server: got connection from %s\n", s);
+        pthread_t myth;
+        pthread_create(&myth, NULL, T_FUNCTION, &new_fd);
 
 
-        if (!fork()) { // this is the child process
-            close(sockfd); // child doesn't need the listener
-            PROCESS_FUNCTION(&new_fd);
-            close(new_fd);
-            close(fd3);
-            exit(0);
-        }
-        close(new_fd);
-
-    close(fd3);
     }
     return 0;
 }

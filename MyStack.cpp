@@ -1,25 +1,21 @@
-#include <iostream>
-#include <pthread.h>
-#include <string.h>
 #include "MyStack.hpp"
 using namespace std;
-using namespace ex4;
-//https://www.informit.com/articles/article.aspx?p=23618&seqNum=4
+
 int fd;
 struct flock lock;
-int createFile(){
-    fd = open("Helper2.txt", O_WRONLY | O_CREAT);
 
+void ex4::MyStack::create_file()
+{
+    fd = open("lock.txt", O_WRONLY | O_CREAT);
 
     if (fd == -1)
     {
         printf("Error Number % d\n", errno);
-        perror("Program");
+
+        perror("Failed");
     }
     memset(&lock, 0, sizeof(lock));
-    return fd;
 }
-
 
 ex4::MyStack::MyStack()
 {
@@ -33,17 +29,17 @@ void ex4::MyStack::PUSH(char *val)
     fcntl(fd, F_SETLKW, &lock);
     if (strlen(val) > 1024)
     {
-        lock.l_type = F_UNLCK;
-        fcntl (fd, F_SETLKW, &lock);
         throw ::invalid_argument("DEBUG:string size has to be less then 1025.");
+        lock.l_type = F_UNLCK;
+        fcntl(fd, F_SETLKW, &lock);
     }
-    ex4::Node *newnode = (ex4::Node *)MyMemory::my_malloc(sizeof(ex4::Node));
-    newnode->data = (char *)MyMemory::my_malloc(strlen(val) + 1);
+    ex4::Node *newnode = (ex4::Node *)malloc(sizeof(ex4::Node));
+    newnode->data = (char *)malloc(strlen(val) + 1);
     strcpy(newnode->data, val);
     newnode->next = this->head;
     this->head = newnode;
     lock.l_type = F_UNLCK;
-    fcntl (fd, F_SETLKW, &lock);
+    fcntl(fd, F_SETLKW, &lock);
 }
 
 void ex4::MyStack::POP()
@@ -56,11 +52,11 @@ void ex4::MyStack::POP()
     {
         ex4::Node *temp = this->head;
         this->head = this->head->next;
-        MyMemory::my_free(temp->data);
-        MyMemory::my_free(temp);
+        free(temp->data);
+        free(temp);
     }
     lock.l_type = F_UNLCK;
-    fcntl (fd, F_SETLKW, &lock);
+    fcntl(fd, F_SETLKW, &lock);
 }
 
 char *ex4::MyStack::TOP()
@@ -69,19 +65,17 @@ char *ex4::MyStack::TOP()
     fcntl(fd, F_SETLKW, &lock);
     if (this->head == NULL)
     {
-        char *ans = (char *)MyMemory::my_malloc(25);
+        char *ans = (char *)malloc(25);
         strcpy(ans, "DEBUG:Stack is empty.");
-        lock.l_type = F_UNLCK;
-        fcntl (fd, F_SETLKW, &lock);
         return ans;
     }
     else
     {
-        char *ans = (char *)MyMemory::my_malloc(strlen(this->head->data)+10);
+        char *ans = (char *)malloc(strlen(this->head->data) + 10);
         strcpy(ans, "OUTPUT:");
         strcat(ans, this->head->data);
-        lock.l_type = F_UNLCK;
-        fcntl (fd, F_SETLKW, &lock);
         return ans;
     }
+    lock.l_type = F_UNLCK;
+    fcntl(fd, F_SETLKW, &lock);
 }
